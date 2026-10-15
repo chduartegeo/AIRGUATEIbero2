@@ -2,7 +2,7 @@
 
 ## Acceso y análisis de datos de calidad del aire con Python
 
-Workshop práctico para personal de la **Universidad Rafael Landívar, Guatemala**. Los datos se obtienen de sensores mediante la API de **Smability**, alojada en AWS.
+Workshop práctico. Los datos se obtienen de sensores mediante la API de **Smability**, alojada en AWS.
 
 ## Objetivo
 
