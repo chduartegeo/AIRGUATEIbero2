@@ -131,6 +131,23 @@ DISPOSITIVOS = {
 }
 ```
 
+## Variables disponibles y unidades
+
+Las gráficas usan exclusivamente los seis campos ambientales disponibles en SMAA_005 y SMAA_006. Las unidades corresponden a la referencia visual de estos equipos, confirmada para esta actualización.
+
+| Variable | Campo | Unidad |
+|---|---|---|
+| PM2.5 | `pm25_avg` | µg/m³ |
+| PM10 | `pm10_avg` | µg/m³ |
+| Monóxido de carbono | `co_avg` | ppb |
+| Ozono | `o3_avg` | ppb |
+| Temperatura | `temperature_avg` | °C |
+| Humedad | `humidity_avg` | % |
+
+`µg/m³` significa microgramos por metro cúbico y `ppb`, partes por mil millones. La batería (`battery_avg`) se expresa en **%** y es un indicador de operación, no una variable ambiental.
+
+La API también puede incluir `no2_avg`, `ch4_avg`, `noise_avg` y `aqi_no2`, pero estos equipos no tienen sensores de NO2, CH4 ni ruido. Esos campos se conservan al explorar la respuesta original y en la muestra JSON, sin tratarlos como mediciones disponibles ni ofrecerlos para las gráficas. El diccionario `ETIQUETAS_VARIABLES` mantiene los nombres y las unidades de las seis opciones válidas.
+
 ## API y estructura de la respuesta
 
 Endpoint:
@@ -189,7 +206,7 @@ La comparación se omite explícitamente en este modo porque no hay una muestra 
 
 Estos datos provienen de sensores ambientales. Revisa `quality_status`, `quality_score`, `data_completeness`, `data_points` y `max_gap_seconds` antes de interpretarlos. `quality_status` describe la calidad del registro, mientras que `aqi_category` describe una categoría AQI; no son equivalentes.
 
-No se han confirmado las unidades ambientales ni la metodología de AQI en la documentación suministrada. Las gráficas no asignan unidades inventadas; la [referencia de variables](docs/referencia_variables.md) distingue lo observado de lo pendiente de confirmar con Smability. Un cero no prueba por sí solo la ausencia de un contaminante ni que el canal esté operativo.
+El **AQI es un dato calculado por Smability**. Su metodología está pendiente de revisión y se documentará en una actualización posterior; en esta versión no se recalcula ni se grafica. Las gráficas ambientales y los resúmenes muestran las unidades de la tabla anterior. La [referencia de variables](docs/referencia_variables.md) distingue los sensores disponibles de otros campos del esquema. Un cero no prueba por sí solo la ausencia de un contaminante ni que el canal esté operativo.
 
 Las estadísticas describen los **promedios horarios disponibles**, con igual peso por hora válida. No representan automáticamente todo el periodo solicitado ni todas las mediciones originales. `NaN` significa dato o estadística no disponible. Las líneas de las gráficas conectan observaciones y pueden atravesar huecos: no son evidencia de medición continua. Compara los periodos, las horas comunes y la calidad de ambos equipos antes de interpretar diferencias; las gráficas por sí solas no establecen causas.
 
@@ -229,6 +246,10 @@ Comprobaciones realizadas antes de publicar:
 - Revisión de los siete archivos que se publican, enlaces internos, comandos de instalación y ausencia de secretos. Las instrucciones de activación de Windows se revisaron, pero no se ejecutaron en Windows.
 
 Las versiones directas están fijadas; no se garantiza una resolución idéntica de las dependencias transitivas en todos los sistemas. Python 3.10 es la versión mínima recomendada; esta validación ejecutable corresponde a Python 3.13.2.
+
+## Validación de la actualización de unidades
+
+Se volvieron a ejecutar el script y el notebook completos contra la API. Se revisaron las gráficas y se comprobó que las seis variables muestran su unidad tanto en la gráfica individual como en la comparación. También se verificaron el modo educativo y el rechazo de campos fuera de esas seis opciones (incluidos NO2, CH4, ruido, AQI y batería).
 
 ## Credenciales
 

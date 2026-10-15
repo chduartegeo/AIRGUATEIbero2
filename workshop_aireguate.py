@@ -2,7 +2,7 @@
 Workshop AireGuate
 Acceso y análisis de datos de calidad del aire con Python
 
-Universidad Rafael Landívar
+Datos de calidad del aire en Guatemala.
 Datos proporcionados mediante la API de Smability.
 """
 
@@ -214,6 +214,17 @@ columnas = [
     "co_avg",
     "o3_avg"
 ]
+# Este diccionario relaciona cada campo disponible con su etiqueta y unidad.
+# Las etiquetas no convierten los valores: ya vienen expresados en estas unidades.
+ETIQUETAS_VARIABLES = {
+    "pm25_avg": "PM2.5 (µg/m³)",
+    "pm10_avg": "PM10 (µg/m³)",
+    "co_avg": "Monóxido de carbono (ppb)",
+    "o3_avg": "Ozono (ppb)",
+    "temperature_avg": "Temperatura (°C)",
+    "humidity_avg": "Humedad (%)"
+}
+
 # Una lista es útil para mantener juntos y en orden los nombres a seleccionar.
 df_completo = df.copy()  # Conserva una copia con las variables de calidad.
 if df.empty:
@@ -256,7 +267,7 @@ print(df[["fecha_utc", "fecha_guatemala", "pm25_avg", "temperature_avg"]].head()
 # | Grupo | Campos |
 # |---|---|
 # | Ambientales | `temperature_avg`, `humidity_avg`, `pm25_avg`, `pm10_avg`, `co_avg`,
-# `o3_avg`, `noise_avg` |
+# `o3_avg` |
 # | Indicadores de calidad del aire (AQI) | `aqi`, `aqi_category`, `aqi_pollutant`,
 # `aqi_pm25`, `aqi_pm10`, `aqi_co`, `aqi_o3` |
 # | Calidad y operación del equipo | `quality_status`, `quality_score`, `data_completeness`,
@@ -266,9 +277,13 @@ print(df[["fecha_utc", "fecha_guatemala", "pm25_avg", "temperature_avg"]].head()
 # calidad del registro: **no es** la categoría de calidad del aire `aqi_category`. Tampoco
 # podemos interpretar un cero como ausencia confirmada de contaminante sin conocer el
 # sensor.
-# No definimos umbrales, descartes automáticos ni unidades no confirmadas. Consulte [la
-# referencia](docs/referencia_variables.md) para los campos y las limitaciones de
-# interpretación.
+# Estos equipos tienen sensores de PM2.5, PM10, CO, O3, temperatura y humedad.
+# Los campos no2_avg, ch4_avg y noise_avg pueden aparecer en el JSON, pero no corresponden
+# a sensores instalados en SMAA_005 y SMAA_006: no se analizan ni grafican.
+# El AQI es un dato calculado por Smability; su metodología está pendiente de revisión
+# y se documentará posteriormente. Por ahora no se recalcula ni se grafica.
+# La batería (battery_avg) se expresa en % y es un indicador de operación.
+# No definimos umbrales ni descartes automáticos. Consulta docs/referencia_variables.md.
 columnas_calidad = [
     "quality_status", "quality_score", "data_completeness",
     "data_points", "max_gap_seconds"
@@ -306,19 +321,21 @@ else:
 # mediciones originales ni una evaluación normativa o sanitaria. pandas omite valores
 # ausentes y no los convierte en cero.
 if not df.empty:
-    print("Promedio horario disponible de PM2.5:", df["pm25_avg"].mean())
-    print("Mínimo de los promedios horarios:", df["pm25_avg"].min())
-    print("Máximo de los promedios horarios:", df["pm25_avg"].max())
+    print("Promedio horario disponible de PM2.5 (µg/m³):", df["pm25_avg"].mean())
+    print("Mínimo de los promedios horarios de PM2.5 (µg/m³):", df["pm25_avg"].min())
+    print("Máximo de los promedios horarios de PM2.5 (µg/m³):", df["pm25_avg"].max())
     print(df[[
         "temperature_avg", "humidity_avg", "pm25_avg",
         "pm10_avg", "co_avg", "o3_avg"
-    ]].describe())
+    ]].describe().rename(columns=ETIQUETAS_VARIABLES))
 else:
     print("Sin registros: no se calculan estadísticas.")
 
 # Un par de corchetes selecciona una columna y devuelve una serie; la lista dentro de dos
 # pares selecciona varias columnas y conserva una tabla. Cada hora válida tiene el mismo
 # peso. `NaN` indica que una estadística no pudo calcularse, por ejemplo por falta de datos.
+# rename añade nombres legibles y unidades al resumen; no cambia las columnas originales.
+# count cuenta observaciones; las demás filas conservan la unidad de cada variable.
 
 # ==================================================================
 # Parte 9 — Primera gráfica
@@ -327,8 +344,8 @@ else:
 
 # Una **serie temporal** relaciona una variable con el tiempo. La **figura** es el espacio
 # de dibujo; el **eje X** mostrará fechas locales y el **eje Y**, PM2.5.
-# `matplotlib.pyplot`, abreviado `plt`, permite dibujarla. Las etiquetas usan el nombre del
-# campo porque la respuesta no confirma unidades.
+# `matplotlib.pyplot`, abreviado `plt`, permite dibujarla. Las etiquetas muestran el nombre
+# de la variable y su unidad, según las unidades confirmadas para estos equipos.
 # El título identifica el dispositivo realmente consultado. La línea conecta observaciones y
 # puede atravesar horas sin datos: no implica que se hayan medido todas las horas
 # intermedias.
@@ -342,7 +359,7 @@ if not df.empty and df["pm25_avg"].notna().any():
     plt.figure(figsize=(12, 5))  # Crea una figura de 12 por 5 pulgadas.
     plt.plot(df["fecha_guatemala"], df["pm25_avg"], marker=".")
     plt.xlabel("Fecha y hora de Guatemala")  # Etiqueta del eje horizontal.
-    plt.ylabel("PM2.5 (unidad no confirmada)")  # Etiqueta del eje vertical.
+    plt.ylabel(ETIQUETAS_VARIABLES["pm25_avg"])  # Etiqueta del eje vertical.
     plt.title("PM2.5 - " + nombre_dispositivo)
     plt.gca().xaxis.set_major_formatter(
         mdates.DateFormatter("%d/%m %H:%M", tz=ZONA_GUATEMALA)
@@ -368,18 +385,20 @@ else:
 # aprenderemos a convertir operaciones repetidas en funciones.
 # ==========================================================
 # CAMBIA SOLAMENTE ESTA VARIABLE
-# Opciones: temperature_avg, humidity_avg, pm10_avg, co_avg, o3_avg
+# Opciones: pm25_avg, pm10_avg, co_avg, o3_avg, temperature_avg, humidity_avg
 # ==========================================================
 VARIABLE = "temperature_avg"
 
+if VARIABLE not in ETIQUETAS_VARIABLES:
+    raise ValueError("Elige uno de los seis campos ambientales de ETIQUETAS_VARIABLES.")
 if VARIABLE not in df.columns:
     raise ValueError(f"La columna {VARIABLE} no existe. Revisa df.columns.")
 if not df.empty and df[VARIABLE].notna().any():
     plt.figure(figsize=(12, 5))
     plt.plot(df["fecha_guatemala"], df[VARIABLE], marker=".")
     plt.xlabel("Fecha y hora de Guatemala")
-    plt.ylabel(VARIABLE + " (unidad no confirmada)")
-    plt.title(VARIABLE + " - " + nombre_dispositivo)
+    plt.ylabel(ETIQUETAS_VARIABLES[VARIABLE])
+    plt.title(ETIQUETAS_VARIABLES[VARIABLE] + " - " + nombre_dispositivo)
     plt.gca().xaxis.set_major_formatter(
         mdates.DateFormatter("%d/%m %H:%M", tz=ZONA_GUATEMALA)
     )
@@ -470,8 +489,11 @@ def consultar_dispositivo(device_id, days=7):
 # y horas comunes. No rellenamos horas ausentes ni calculamos diferencias entre filas
 # desalineadas.
 # Cambia solo esta columna para comparar otra variable de ambos dispositivos.
-# Opciones: pm25_avg, temperature_avg, humidity_avg, pm10_avg, o3_avg
+# Opciones: pm25_avg, pm10_avg, co_avg, o3_avg, temperature_avg, humidity_avg
 VARIABLE_COMPARACION = "pm25_avg"
+
+if VARIABLE_COMPARACION not in ETIQUETAS_VARIABLES:
+    raise ValueError("Elige uno de los seis campos ambientales de ETIQUETAS_VARIABLES.")
 
 if USAR_EJEMPLO:
     # La muestra contiene un solo equipo: no inventamos una segunda serie.
@@ -511,7 +533,7 @@ else:
                 label="Zona 9 - Centro Landivariano Integral de Proyección", marker="."
             )
             plt.xlabel("Fecha y hora de Guatemala")
-            plt.ylabel(VARIABLE_COMPARACION + " (unidad no confirmada)")
+            plt.ylabel(ETIQUETAS_VARIABLES[VARIABLE_COMPARACION])
             plt.title("Comparación entre Zona 16 y Zona 9")
             plt.gca().xaxis.set_major_formatter(
                 mdates.DateFormatter("%d/%m %H:%M", tz=ZONA_GUATEMALA)
@@ -527,7 +549,7 @@ else:
 # Ambas consultas usan los mismos días solicitados, pero cada equipo puede devolver distinta
 # cobertura. Las horas comunes cuentan timestamps, no certifican que la variable ni su
 # calidad sean válidas en todos ellos. Cambia VARIABLE_COMPARACION para explorar
-# temperatura, humedad, PM10 u O3.
+# temperatura, humedad, PM10, CO u O3.
 
 # ==================================================================
 # Parte 13 — Ejercicio final
@@ -544,5 +566,6 @@ else:
 # Puedes añadir celdas de código y texto para documentar tu trabajo.
 
 # Ejercicio final: elige equipo y días; consulta; identifica columnas; convierte
-# el tiempo; revisa calidad; calcula estadísticas; elige una variable; grafica;
+# el tiempo; revisa calidad; calcula estadísticas; elige una de las seis variables
+# ambientales; grafica con su unidad;
 # redacta 2–3 observaciones con evidencia y una limitación de los datos.
